@@ -48,11 +48,10 @@ async function onFormSubmitSearchQuery(e) {
 
   const data = await newsApiService.getFoto();
 
-  Notiflix.Notify.success(`Hooray! We found ${data.totalHits} images.`);
-
   const galleryItems = await data.hits;
 
   if (galleryItems.length !== 0) {
+    Notiflix.Notify.success(`Hooray! We found ${data.totalHits} images.`);
     appendGalleryMurkup(galleryItems);
     startSimpleLightbox();
     refs.loadMoreBtn.classList.remove('is-hidden');
