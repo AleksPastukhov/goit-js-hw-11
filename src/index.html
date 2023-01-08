@@ -4,21 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Homework 11</title>
-    <script type="module" src="./index.js"></script>
+    <link rel="stylesheet" href="./main.css">
   </head>
   <body>
     <form class="search-form" id="search-form">
-      <input
+      <div class="form-box">
+        <input
         type="text"
         name="searchQuery"
         autocomplete="off"
         placeholder="Search images..."
       />
-      <button type="submit">Search</button>
+      <button class="form-btn" type="submit"><svg width="10px" height="10px">
+        <use href="./symbol-defs.svg#search"></use>
+    </svg></button>
+      </div>
     </form>
     <div class="gallery">
       <!-- Картки зображень -->
     </div>
-    <button type="button" class="load-more">Load more</button>
+    <button type="button" class="load-more is-hidden">Load more</button>
+    <script type="module" src="./index.js"></script>
   </body>
 </html>

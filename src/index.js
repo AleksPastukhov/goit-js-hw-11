@@ -1,61 +1,114 @@
 const axios = require('axios').default;
+import Notiflix from 'notiflix';
+import NewsApiService from './js/news-service';
+import SimpleLightbox from 'simplelightbox';
+import 'simplelightbox/dist/simple-lightbox.min.css';
 
 const refs = {
-    form: document.querySelector('.search-form'),
-    gallery: document.querySelector('.gallery'),
+  form: document.querySelector('.search-form'),
+  gallery: document.querySelector('.gallery'),
+  loadMoreBtn: document.querySelector('.load-more'),
+};
+
+refs.form.addEventListener('submit', onFormSubmitSearchQuery);
+refs.loadMoreBtn.addEventListener('click', onLoadMoreBtnClick);
+
+const newsApiService = new NewsApiService();
+
+function scroll() {
+  const { height: cardHeight } = document
+    .querySelector('.gallery')
+    .firstElementChild.getBoundingClientRect();
+
+  window.scrollBy({
+    top: cardHeight * 2,
+    behavior: 'smooth',
+  });
+}
+
+function startSimpleLightbox() {
+  const simpleLightboxOptions = {
+    captionsData: 'alt',
+    captionDelay: 250,
+  };
+
+  const gallerySet = new SimpleLightbox('.gallery a', simpleLightboxOptions);
+  return gallerySet;
+}
+
+async function onFormSubmitSearchQuery(e) {
+  e.preventDefault();
+
+  clearGalleryContainer();
+  refs.loadMoreBtn.classList.add('is-hidden');
+
+  newsApiService.request = e.currentTarget.elements.searchQuery.value;
+
+  newsApiService.resetPage();
+
+  const data = await newsApiService.getFoto();
+
+  Notiflix.Notify.success(`Hooray! We found ${data.totalHits} images.`);
+
+  const galleryItems = await data.hits;
+
+  if (galleryItems.length !== 0) {
+    appendGalleryMurkup(galleryItems);
+    startSimpleLightbox();
+    refs.loadMoreBtn.classList.remove('is-hidden');
+  } else {
+    Notiflix.Notify.failure(
+      `❌ "Sorry, there are no images matching your search query. Please try again."`
+    );
   }
-
-refs.form.addEventListener('submit', onSearchQuery)
-
-const API_KEY = '32681971-7c4dedd5870704d3ef280ea2e';
-const MAIN_URL = `https://pixabay.com/api/?key=${API_KEY}`;
-let userRequest = '';
-let request = '';
-
-function onSearchQuery(e){
-    e.preventDefault();
-    userRequest = e.target[0].value;
-    getFoto (userRequest)
 }
 
-function createRequest (userRequest) {
-return request = `${MAIN_URL}&q=${userRequest}&image_type=photo&orientation=horizontal&safesearch=true`;
+async function onLoadMoreBtnClick() {
+  const data = await newsApiService.getFoto();
+  const galleryItems = await data.hits;
+  appendGalleryMurkup(galleryItems);
+  startSimpleLightbox().refresh();
+
+  if (
+    data.totalHits === refs.gallery.children.length ||
+    data.totalHits < refs.gallery.children.length
+  ) {
+    Notiflix.Notify.failure(`We're sorry, but you've reached the end of search results.`);
+    refs.loadMoreBtn.classList.add('is-hidden');
+  }
+  scroll();
 }
 
-async function getFoto (userRequest) {
-    createRequest (userRequest)
-    const respons = await axios.get(request)
-    return respons.data
+function appendGalleryMurkup(galleryItems) {
+  refs.gallery.insertAdjacentHTML('beforeend', createMurkup(galleryItems));
 }
 
-// function createMurkup () {
-// return `
-// <div class="photo-card">
-//   <img src="" alt="" loading="lazy" />
-//   <div class="info">
-//     <p class="info-item">
-//       <b>Likes</b>
-//     </p>
-//     <p class="info-item">
-//       <b>Views</b>
-//     </p>
-//     <p class="info-item">
-//       <b>Comments</b>
-//     </p>
-//     <p class="info-item">
-//       <b>Downloads</b>
-//     </p>
-//   </div>
-// </div>
-// `
-// }
+function clearGalleryContainer() {
+  refs.gallery.innerHTML = '';
+}
 
-
-// const { height: cardHeight } = document
-//   .querySelector(".gallery")
-//   .firstElementChild.getBoundingClientRect();
-
-// window.scrollBy({
-//   top: cardHeight * 2,
-//   behavior: "smooth",
-// });
+function createMurkup(galleryItems) {
+  return galleryItems
+    .map(({ webformatURL, largeImageURL, tags, likes, views, comments, downloads }) => {
+      return `
+<div class="photo-card">
+<a href="${largeImageURL}"><img src="${webformatURL}" alt="${tags}" loading="lazy" title="" width="290px" height="190px"/></a>
+  <div class="info">
+    <p class="info-item">
+      <b>Likes</b><span>${likes}</span>
+    </p>
+    <p class="info-item">
+      <b>Views</b><span>${views}</span>
+    </p>
+    <p class="info-item">
+      <b>Comments</b><span>${comments}</span>
+    </p>
+    <p class="info-item">
+      <b>Downloads</b><span>${downloads}</span>
+    </p>
+  </div>
+</div>
+`;
+    })
+    .join('');
+}
