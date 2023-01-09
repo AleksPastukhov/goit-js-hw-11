@@ -1,4 +1,3 @@
-const axios = require('axios').default;
 import Notiflix from 'notiflix';
 import NewsApiService from './js/news-service';
 import SimpleLightbox from 'simplelightbox';

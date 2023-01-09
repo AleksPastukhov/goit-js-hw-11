@@ -1,5 +1,4 @@
 const axios = require('axios').default;
-import Notiflix from 'notiflix';
 
 export default class NewsApiService {
     constructor(){
