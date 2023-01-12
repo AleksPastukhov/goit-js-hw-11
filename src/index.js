@@ -12,6 +12,21 @@ const refs = {
 refs.form.addEventListener('submit', onFormSubmitSearchQuery);
 refs.loadMoreBtn.addEventListener('click', onLoadMoreBtnClick);
 
+const options = {
+  root: null,
+  rootMargin: '200px',
+  threshold: 0,
+};
+
+const simpleLightboxOptions = {
+  captionsData: 'alt',
+  captionDelay: 250,
+};
+
+let observer = new IntersectionObserver(onLoad, options);
+
+const gallerySet = new SimpleLightbox('.gallery a', simpleLightboxOptions);
+
 const newsApiService = new NewsApiService();
 
 function scroll() {
@@ -25,35 +40,58 @@ function scroll() {
   });
 }
 
-function startSimpleLightbox() {
-  const simpleLightboxOptions = {
-    captionsData: 'alt',
-    captionDelay: 250,
-  };
-
-  const gallerySet = new SimpleLightbox('.gallery a', simpleLightboxOptions);
-  return gallerySet;
+function onLoad(entries, observer) {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      getFotoForUser()
+        .then(data => {
+          appendGalleryMurkup(data);
+          if (
+            data.totalHits === refs.gallery.children.length ||
+            data.totalHits < refs.gallery.children.length
+          ) {
+            Notiflix.Notify.failure(`We're sorry, but you've reached the end of search results.`);
+            refs.loadMoreBtn.classList.add('is-hidden');
+            observer.unobserve(refs.loadMoreBtn);
+          }
+        })
+        .catch(error => console.log('error'));
+    }
+  });
 }
 
-async function onFormSubmitSearchQuery(e) {
+function onFormSubmitSearchQuery(e) {
   e.preventDefault();
 
-  clearGalleryContainer();
-  refs.loadMoreBtn.classList.add('is-hidden');
+  if (!e.currentTarget.elements.searchQuery.value) {
+    return Notiflix.Notify.failure(
+      `❌ "Sorry, there are no images matching your search query. Please try again."`
+    );
+  }
 
-  newsApiService.request = e.currentTarget.elements.searchQuery.value;
+  clearGalleryContainer();
+
+  refs.loadMoreBtn.classList.add('is-hidden');
 
   newsApiService.resetPage();
 
-  const data = await newsApiService.getFoto();
+  newsApiService.request = e.currentTarget.elements.searchQuery.value;
 
-  const galleryItems = await data.hits;
+  getFotoForUser()
+    .then(createPageForUser)
+    .catch(error => console.log('error'));
+}
 
-  if (galleryItems.length !== 0) {
+async function getFotoForUser() {
+  return await newsApiService.getFoto();
+}
+
+function createPageForUser(data) {
+  if (data.hits.length !== 0) {
     Notiflix.Notify.success(`Hooray! We found ${data.totalHits} images.`);
-    appendGalleryMurkup(galleryItems);
-    startSimpleLightbox();
+    appendGalleryMurkup(data);
     refs.loadMoreBtn.classList.remove('is-hidden');
+    observer.observe(refs.loadMoreBtn);
   } else {
     Notiflix.Notify.failure(
       `❌ "Sorry, there are no images matching your search query. Please try again."`
@@ -62,31 +100,33 @@ async function onFormSubmitSearchQuery(e) {
 }
 
 async function onLoadMoreBtnClick() {
-  const data = await newsApiService.getFoto();
-  const galleryItems = await data.hits;
-  appendGalleryMurkup(galleryItems);
-  startSimpleLightbox().refresh();
-
-  if (
-    data.totalHits === refs.gallery.children.length ||
-    data.totalHits < refs.gallery.children.length
-  ) {
-    Notiflix.Notify.failure(`We're sorry, but you've reached the end of search results.`);
-    refs.loadMoreBtn.classList.add('is-hidden');
-  }
+  getFotoForUser()
+    .then(data => {
+      appendGalleryMurkup(data);
+      if (
+        data.totalHits === refs.gallery.children.length ||
+        data.totalHits < refs.gallery.children.length
+      ) {
+        Notiflix.Notify.failure(`We're sorry, but you've reached the end of search results.`);
+        refs.loadMoreBtn.classList.add('is-hidden');
+      }
+    })
+    .catch(error => console.log('error'));
   scroll();
 }
 
-function appendGalleryMurkup(galleryItems) {
-  refs.gallery.insertAdjacentHTML('beforeend', createMurkup(galleryItems));
+function appendGalleryMurkup(data) {
+  refs.gallery.insertAdjacentHTML('beforeend', createMurkup(data));
+  gallerySet.refresh();
 }
 
 function clearGalleryContainer() {
   refs.gallery.innerHTML = '';
 }
 
-function createMurkup(galleryItems) {
-  return galleryItems
+function createMurkup(data) {
+  const dataForMurcup = data.hits;
+  return dataForMurcup
     .map(({ webformatURL, largeImageURL, tags, likes, views, comments, downloads }) => {
       return `
 <div class="photo-card">
